@@ -1,0 +1,475 @@
+openapi: 3.0.3
+info:
+  title: Telenova Webphone - API pública
+  version: 1.0.0
+  description: Contratos públicos da Fusion API e do runtime do Telenova Webphone.
+servers:
+  - url: "{fusionApiUrl}/fusionapi"
+    description: Fusion API
+    variables:
+      fusionApiUrl:
+        default: https://fusion-api.exemplo.com
+        description: URL base da Fusion API, sem barra no final.
+tags:
+  - name: Configurações
+  - name: Administração
+  - name: Runtime
+security:
+  - TenantApiKey: []
+paths:
+  /webphone/configs:
+    get:
+      tags: [Configurações]
+      summary: Listar configurações do tenant
+      operationId: listWebphoneConfigs
+      responses:
+        "200":
+          description: Configurações do tenant.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WebphoneConfig"
+        "401":
+          $ref: "#/components/responses/InvalidApiKey"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /webphone/configs/{userId}:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    get:
+      tags: [Configurações]
+      summary: Consultar uma configuração
+      operationId: getWebphoneConfig
+      responses:
+        "200":
+          description: Configuração encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebphoneConfig"
+        "401":
+          $ref: "#/components/responses/InvalidApiKey"
+        "404":
+          $ref: "#/components/responses/WebphoneNotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Configurações]
+      summary: Criar ou substituir uma configuração
+      operationId: putWebphoneConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutWebphoneConfig"
+      responses:
+        "200":
+          description: Configuração substituída.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebphoneConfig"
+        "201":
+          description: Configuração criada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebphoneConfig"
+        "401":
+          $ref: "#/components/responses/InvalidApiKey"
+        "404":
+          $ref: "#/components/responses/ExtensionNotFound"
+        "409":
+          $ref: "#/components/responses/WebphoneConflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Configurações]
+      summary: Alterar parcialmente uma configuração
+      description: Quando uiConfig é enviado, o objeto substitui o uiConfig anterior por inteiro.
+      operationId: patchWebphoneConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchWebphoneConfig"
+      responses:
+        "200":
+          description: Configuração atualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebphoneConfig"
+        "401":
+          $ref: "#/components/responses/InvalidApiKey"
+        "404":
+          $ref: "#/components/responses/WebphoneNotFound"
+        "409":
+          $ref: "#/components/responses/WebphoneConflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /webphone/configs/{userId}/change-id:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    post:
+      tags: [Configurações]
+      summary: Trocar o identificador do usuário
+      operationId: changeWebphoneUserId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeUserId"
+      responses:
+        "200":
+          description: Identificador alterado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebphoneConfig"
+        "401":
+          $ref: "#/components/responses/InvalidApiKey"
+        "404":
+          $ref: "#/components/responses/WebphoneNotFound"
+        "409":
+          description: O novo userId já existe no tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /auth:
+    post:
+      tags: [Administração]
+      summary: Obter JWT administrativo
+      operationId: authenticateAdmin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthInput"
+      responses:
+        "200":
+          description: Login realizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Campo obrigatório ausente.
+        "401":
+          description: Credenciais inválidas.
+        "403":
+          description: Domínio desabilitado.
+  /webphone/integration-key:
+    get:
+      tags: [Administração]
+      summary: Consultar a API Key do tenant autenticado
+      operationId: getIntegrationKey
+      security:
+        - AdminJwt: []
+      responses:
+        "200":
+          description: Chave atual ou null quando ainda não existe.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [apiKey]
+                properties:
+                  apiKey:
+                    type: string
+                    nullable: true
+                    example: wp_tk_EXEMPLO
+        "401":
+          description: JWT ausente, inválido ou expirado.
+  /api/webphone:
+    get:
+      tags: [Runtime]
+      summary: Carregar o Webphone por JavaScript
+      operationId: loadWebphoneScript
+      servers:
+        - url: "{webphoneUrl}"
+          description: Servidor Webphone
+          variables:
+            webphoneUrl:
+              default: https://webphone.exemplo.com
+      security:
+        - TenantApiKey: []
+        - RuntimeQueryKey: []
+      parameters:
+        - $ref: "#/components/parameters/RuntimeUserId"
+        - $ref: "#/components/parameters/StartAsButton"
+      responses:
+        "200":
+          description: JavaScript dinâmico do Webphone.
+          content:
+            application/javascript:
+              schema:
+                type: string
+        "400":
+          description: userId ausente.
+          content:
+            application/javascript:
+              schema:
+                type: string
+        "403":
+          description: Chave ausente/inválida, tenant incorreto ou Webphone inativo.
+          content:
+            application/javascript:
+              schema:
+                type: string
+  /embed:
+    get:
+      tags: [Runtime]
+      summary: Carregar o Webphone em iframe
+      operationId: loadWebphoneEmbed
+      servers:
+        - url: "{webphoneUrl}"
+          description: Servidor Webphone
+          variables:
+            webphoneUrl:
+              default: https://webphone.exemplo.com
+      security:
+        - RuntimeQueryKey: []
+      parameters:
+        - $ref: "#/components/parameters/RuntimeUserId"
+      responses:
+        "200":
+          description: Página HTML do Webphone.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: userId ausente.
+        "403":
+          description: Chave ausente/inválida, tenant incorreto ou Webphone inativo.
+        "404":
+          description: Webphone não encontrado.
+  /demo:
+    get:
+      tags: [Runtime]
+      summary: Abrir demonstração pública
+      operationId: getWebphoneDemo
+      servers:
+        - url: "{webphoneUrl}"
+          description: Servidor Webphone
+          variables:
+            webphoneUrl:
+              default: https://webphone.exemplo.com
+      security: []
+      responses:
+        "200":
+          description: Página HTML de demonstração.
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  securitySchemes:
+    TenantApiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: API Key do tenant enviada no header Authorization.
+    AdminJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT administrativo retornado por POST /auth.
+    RuntimeQueryKey:
+      type: apiKey
+      in: query
+      name: token
+      description: API Key do tenant usada por script ou iframe no modelo atual.
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: Identificador do usuário no sistema integrado.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    RuntimeUserId:
+      name: userId
+      in: query
+      required: true
+      description: Identificador do usuário no sistema integrado.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    StartAsButton:
+      name: startAsButton
+      in: query
+      required: false
+      description: Inicia como botão flutuante.
+      schema:
+        type: boolean
+        default: false
+  schemas:
+    UiConfig:
+      type: object
+      additionalProperties: false
+      properties:
+        showDialpad: { type: boolean, default: false }
+        showHistory: { type: boolean, default: false }
+        showMute: { type: boolean, default: false }
+        showHold: { type: boolean, default: false }
+        showTransfer: { type: boolean, default: false }
+        showDtmf: { type: boolean, default: false }
+        showConfig: { type: boolean, default: false }
+        startAsButton: { type: boolean, default: false }
+        lockedNumber:
+          type: string
+          maxLength: 64
+          pattern: "^[0-9+*#().\\s-]*$"
+          default: ""
+        tabGuard: { type: boolean, default: false }
+    WebphoneConfig:
+      type: object
+      additionalProperties: false
+      required: [userId, extension, active, uiConfig]
+      properties:
+        userId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        extension:
+          type: string
+          minLength: 1
+          maxLength: 32
+        active:
+          type: boolean
+        uiConfig:
+          $ref: "#/components/schemas/UiConfig"
+        updatedAt:
+          type: string
+          format: date-time
+    PutWebphoneConfig:
+      type: object
+      additionalProperties: false
+      required: [extension, active, uiConfig]
+      properties:
+        extension:
+          type: string
+          minLength: 1
+          maxLength: 32
+        active:
+          type: boolean
+        uiConfig:
+          $ref: "#/components/schemas/UiConfig"
+    PatchWebphoneConfig:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        extension:
+          type: string
+          minLength: 1
+          maxLength: 32
+        active:
+          type: boolean
+        uiConfig:
+          $ref: "#/components/schemas/UiConfig"
+    ChangeUserId:
+      type: object
+      additionalProperties: false
+      required: [newUserId]
+      properties:
+        newUserId:
+          type: string
+          minLength: 1
+          maxLength: 128
+    AuthInput:
+      type: object
+      required: [username, password, domain]
+      properties:
+        username: { type: string }
+        password: { type: string, format: password }
+        domain: { type: string, example: empresa.exemplo.com }
+    AuthResponse:
+      type: object
+      required: [user, token, expireAt]
+      properties:
+        user:
+          type: object
+          additionalProperties: true
+        token:
+          type: string
+        expireAt:
+          type: string
+          format: date-time
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: array
+              items: { type: string }
+  responses:
+    InvalidApiKey:
+      description: API Key ausente ou inválida.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    WebphoneNotFound:
+      description: Webphone não encontrado no tenant.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    ExtensionNotFound:
+      description: Ramal não encontrado no tenant.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    WebphoneConflict:
+      description: userId ou ramal já associado no tenant.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    ValidationError:
+      description: Parâmetro, tipo ou propriedade inválida.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    InternalError:
+      description: Falha interna sem detalhes sensíveis.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
